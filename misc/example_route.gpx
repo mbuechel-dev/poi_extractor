@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="AMR POI Tool" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>Example AMR Route Segment</name>
+    <desc>Sample route through Marrakech area for testing</desc>
+  </metadata>
+  <trk>
+    <name>Example Route</name>
+    <trkseg>
+      <trkpt lat="31.6295" lon="-7.9811">
+        <ele>466</ele>
+      </trkpt>
+      <trkpt lat="31.6340" lon="-7.9750">
+        <ele>470</ele>
+      </trkpt>
+      <trkpt lat="31.6420" lon="-7.9680">
+        <ele>485</ele>
+      </trkpt>
+      <trkpt lat="31.6500" lon="-7.9620">
+        <ele>495</ele>
+      </trkpt>
+      <trkpt lat="31.6580" lon="-7.9540">
+        <ele>510</ele>
+      </trkpt>
+      <trkpt lat="31.6650" lon="-7.9450">
+        <ele>525</ele>
+      </trkpt>
+      <trkpt lat="31.6720" lon="-7.9360">
+        <ele>540</ele>
+      </trkpt>
+      <trkpt lat="31.6800" lon="-7.9280">
+        <ele>560</ele>
+      </trkpt>
+      <trkpt lat="31.6880" lon="-7.9200">
+        <ele>580</ele>
+      </trkpt>
+      <trkpt lat="31.6950" lon="-7.9120">
+        <ele>600</ele>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>
