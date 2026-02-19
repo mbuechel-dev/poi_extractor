@@ -4,6 +4,16 @@ Extract Points of Interest (POIs) along GPX routes from OpenStreetMap data, opti
 
 Perfect for ultra-endurance races (like Atlas Mountain Race), bikepacking routes, and multi-day tours.
 
+## ✨ Key Features
+
+- 🗺️ **Multiple Extraction Strategies**: Overpass API, multi-stage, or local OSM files
+- 🚴 **Road Safety Analysis**: Identify dangerous roads for ultra-cycling race planning
+- 🌍 **Auto-Download OSM Data**: Geofabrik integration - no manual downloads needed
+- 📱 **Garmin-Ready Output**: GPX waypoints with proper category symbols
+- ⚙️ **Highly Configurable**: Customize POI categories, safety criteria, and buffer distances
+- 🚀 **Modern Python Package**: Pip-installable with CLI and library API
+- 🔧 **Cross-Platform**: Windows, WSL, and Linux with pre-built binary wheels
+
 ## 🎯 What This Does
 
 1. **Extracts POIs** from OpenStreetMap (hotels, water, food, supermarkets, etc.)
@@ -11,11 +21,45 @@ Perfect for ultra-endurance races (like Atlas Mountain Race), bikepacking routes
 3. **Snaps POIs** to the nearest road using OSRM (optional, makes Garmin navigation smoother)
 4. **Exports** Garmin-ready GPX files with waypoints
 
+## 🏗️ Architecture Overview
+
+### Core Components
+
+**POI Extraction System**
+- **Overpass API Strategy**: Query OSM directly (no setup, rate-limited)
+- **Multi-Stage Strategy**: Split long routes to avoid timeouts
+- **Local File Strategy**: Process downloaded OSM PBF files (fastest for repeated use)
+
+**Road Safety Analysis System**
+- **Geofabrik Integration**: Auto-download OSM data for any region worldwide
+- **Osmium Processing**: Fast streaming parser for large PBF files (500MB-30GB)
+- **Risk Scoring Engine**: Multi-factor safety analysis (speed, infrastructure, traffic)
+- **Export Formats**: GPX (for route planning tools), GeoJSON (for web visualization)
+
+**Technology Stack**
+- **OSM Data**: osmium (PyOSMium) for efficient PBF file streaming
+- **Geospatial**: geopandas + shapely for geometry operations
+- **GPX Processing**: gpxpy for route parsing and waypoint generation
+- **Configuration**: INI files for POI categories, YAML for safety criteria
+- **Platform**: Pure Python with pre-built binary wheels (Windows, WSL, Linux)
+
+### Data Flow
+
+```
+POI Extraction:
+GPX Route → Buffer Corridor → Overpass/OSM File → Filter POIs → OSRM Snap → Garmin GPX
+
+Safety Analysis:
+GPX Route → Bbox + Buffer → Geofabrik Match → Download OSM → Parse Roads → Score Risk → Export GPX/GeoJSON
+```
+
 ## 📋 Prerequisites
 
-- **Python 3.8+** - For POI extraction
+- **Python 3.11+** - For POI extraction and safety analysis
 - **Docker** (optional) - For OSRM road snapping
 - **Your GPX route file** - Place it in the `data/` folder
+
+**Note**: OSM data for safety analysis is automatically downloaded based on your route location.
 
 ## 🚀 Quick Start
 
@@ -25,11 +69,17 @@ Perfect for ultra-endurance races (like Atlas Mountain Race), bikepacking routes
 # Activate your virtual environment
 .\.venv\Scripts\Activate.ps1
 
-# Install the package (basic version)
+# Install the package (basic version - Overpass API only)
 pip install -e .
 
-# Or with optional local OSM file support (requires C++ build tools)
+# With local OSM file support (for extract --strategy local)
 pip install -e .[local]
+
+# With road safety analysis (includes auto-download from Geofabrik)
+pip install -e .[safety]
+
+# Everything (POI extraction + safety analysis)
+pip install -e .[all]
 ```
 
 ### 2. Extract POIs from Your Route
@@ -49,11 +99,18 @@ poi-extractor extract --gpx data/long_route.gpx --strategy stages --stage-km 150
 **For offline/faster extraction** (requires local OSM file):
 
 ```powershell
-# First, download OSM data (one-time setup)
-.\scripts\setup_osrm.ps1
+# Download OSM data manually for your region
+# Visit https://download.geofabrik.de/ and download the PBF file
 
 # Then extract using local file
-poi-extractor extract --gpx data/route.gpx --strategy local --osm osrm/morocco-latest.osm.pbf
+poi-extractor extract --gpx data/route.gpx --strategy local --osm path/to/region.osm.pbf
+```
+
+**For road safety analysis** (auto-downloads OSM data):
+
+```powershell
+# No manual downloads needed - system auto-detects and downloads OSM data
+poi-extractor analyze-safety --gpx data/route.gpx --buffer-km 10
 ```
 
 ### 3. Export to Garmin GPX
@@ -166,20 +223,40 @@ poi_extractor/
 ├── src/
 │   └── poi_extractor/           # Main package
 │       ├── core/                # Shared utilities
+│       │   ├── config.py        # POI category configuration
+│       │   ├── utils.py         # Route processing utilities
+│       │   └── osm_handlers.py  # Osmium streaming handlers
 │       ├── extractors/          # Extraction strategies
+│       │   ├── simple.py        # Overpass API strategy
+│       │   ├── stages.py        # Multi-stage strategy
+│       │   └── local.py         # Local OSM file strategy
 │       ├── exporters/           # Output formatters
+│       │   └── garmin.py        # GPX export for Garmin
+│       ├── safety/              # Road safety analysis
+│       │   ├── models.py        # RoadSegment data models
+│       │   ├── osm_manager.py   # Geofabrik auto-download
+│       │   ├── criteria.py      # Safety scoring criteria
+│       │   └── analyzer.py      # Safety analysis engine
 │       └── cli/                 # Command-line interface
+│           ├── extract.py       # POI extraction commands
+│           ├── export.py        # GPX export commands
+│           └── safety.py        # Safety analysis commands
+├── config/                      # Configuration files
+│   ├── config.ini              # POI categories & symbols
+│   └── safety_criteria.yaml    # Safety scoring rules
 ├── data/                        # Your GPX files and output
+│   ├── osm_cache/              # Auto-downloaded OSM data
 │   ├── your_route.gpx          # (add your route here)
 │   ├── pois_along_route.csv
 │   └── pois.gpx
+├── output/                      # Safety analysis results
+│   └── unsafe_roads.gpx
 ├── osrm/                        # OSRM data (optional, auto-created)
 │   └── morocco-latest.osm.pbf
 ├── scripts/                     # PowerShell utility scripts
 │   ├── setup_osrm.ps1
 │   ├── start_osrm.ps1
 │   └── test_osrm.ps1
-├── config.ini                   # POI category configuration
 ├── pyproject.toml              # Package metadata
 └── README.md
 ```
@@ -235,8 +312,11 @@ Perfect for race organizers planning ultra-endurance events who need to:
 ### Quick Safety Analysis
 
 ```powershell
-# Analyze roads within 100km of your route
-poi-extractor analyze-safety --gpx data/race_route.gpx
+# First, install safety analysis dependencies
+pip install -e .[safety]
+
+# Analyze roads within 10km buffer of your route
+poi-extractor analyze-safety --gpx data/race_route.gpx --buffer-km 10
 
 # Output: output/unsafe_roads.gpx (import to GPX Studio for visualization)
 ```
@@ -244,10 +324,16 @@ poi-extractor analyze-safety --gpx data/race_route.gpx
 ### How It Works
 
 1. **Auto-downloads** OSM data based on route location (via Geofabrik)
+   - Detects route bounding box
+   - Finds smallest matching region (e.g., Switzerland not all of Europe)
+   - Downloads only necessary PBF files (~500MB-2GB per region)
+   - Caches in `data/osm_cache/` for reuse
 2. **Extracts** all roads within specified buffer (default: 100km)
 3. **Scores** each road segment based on safety criteria (0-10 scale)
 4. **Filters** roads above risk threshold (default: 7.0/10)
 5. **Exports** unsafe segments as colored GPX tracks for visualization
+
+**No manual OSM downloads needed!** The system automatically handles everything.
 
 ### Safety Criteria
 
@@ -370,15 +456,20 @@ scoring:
 Safety analysis requires optional dependencies:
 
 ```powershell
-pip install -e .[local]
+# Install safety analysis dependencies
+pip install -e .[safety]
+
+# Or install everything (POI extraction + safety)
+pip install -e .[all]
 ```
 
 This installs:
 - `geopandas` - Geospatial operations
 - `shapely` - Geometry processing
-- `osmium` - Reliable OSM file parsing
+- `osmium` (PyOSMium) - Fast OSM file parsing with pre-built wheels
+- `pyyaml` - Configuration file parsing
 
-**Note**: osmium compiles successfully on all platforms including Windows and WSL.
+**Platform Support**: All dependencies install cleanly on Windows, WSL, and Linux with pre-built binary wheels (no compilation needed).
 
 ### Race Organizer Workflow
 
@@ -421,6 +512,25 @@ extractor.save_to_csv("data/pois.csv")
 exporter = GarminExporter("data/pois.csv", config=config)
 exporter.load_pois()
 exporter.export_gpx("data/pois.gpx")
+
+# Road Safety Analysis
+from poi_extractor.safety import RoadSafetyAnalyzer, SafetyCriteria
+
+# Analyze with default criteria
+analyzer = RoadSafetyAnalyzer()
+unsafe_roads = analyzer.analyze_route(
+    gpx_file="data/route.gpx",
+    buffer_km=10,
+    min_risk_score=7.0
+)
+
+# Export results
+analyzer.export_to_gpx("output/unsafe_roads.gpx")
+analyzer.export_to_geojson("output/unsafe_roads.geojson")
+
+# Use custom criteria
+criteria = SafetyCriteria.from_yaml("my_criteria.yaml")
+analyzer = RoadSafetyAnalyzer(criteria=criteria)
 ```
 
 ### Different Buffer Distances per Category
@@ -470,10 +580,9 @@ The old scripts are still available but deprecated.
 - Install optional dependencies: `pip install -e .[local]`
 - Alternatively, use `--strategy simple` or `--strategy stages` instead
 
-**Error: "Microsoft Visual C++ required"**
-- The `local` strategy requires C++ build tools
-- Install from [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/)
-- Or use `--strategy simple` which has no build requirements
+**Error: "osmium not found" when using safety analysis**
+- Install safety dependencies: `pip install -e .[safety]`
+- All packages install with pre-built wheels (no compilation needed)
 
 ### Docker/OSRM Issues
 
@@ -502,6 +611,24 @@ The old scripts are still available but deprecated.
 - Check your GPX file has valid track or waypoints
 - Increase buffer distance: `--buffer 2000`
 - Verify POI categories exist in your area on openstreetmap.org
+
+### Safety Analysis Issues
+
+**OSM download fails**
+- Check internet connection
+- Verify route has valid coordinates
+- Try with smaller buffer: `--buffer-km 5`
+- Use manual OSM file: `--osm-file path.osm.pbf --no-auto-download`
+
+**"Region not found" error**
+- Your route may be in an area not covered by Geofabrik
+- Download OSM data manually from [Geofabrik](https://download.geofabrik.de/)
+- Use `--osm-file` and `--no-auto-download` flags
+
+**Analysis takes very long**
+- Reduce buffer distance: `--buffer-km 10` (default: 100)
+- OSM files are cached in `data/osm_cache/` for subsequent runs
+- First run processes OSM file, later runs are much faster
 
 ## 📊 Output Examples
 
@@ -547,10 +674,23 @@ Compatible with:
 
 ## 📚 Resources
 
-- [OSRM Documentation](http://project-osrm.org/)
-- [Garmin POI Loader](https://www8.garmin.com/support/download_details.jsp?id=927)
-- [Geofabrik Downloads](https://download.geofabrik.de/) - OSM data
+### OSM Data & Tools
+- [Geofabrik Downloads](https://download.geofabrik.de/) - OSM extracts by region
 - [OpenStreetMap Wiki](https://wiki.openstreetmap.org/) - Tag documentation
+- [Overpass API](https://wiki.openstreetmap.org/wiki/Overpass_API) - Query OSM data
+
+### Routing & Navigation
+- [OSRM Documentation](http://project-osrm.org/) - Open Source Routing Machine
+- [Garmin POI Loader](https://www8.garmin.com/support/download_details.jsp?id=927) - Convert GPX to .gpi
+
+### Visualization & Planning
+- [GPX Studio](https://gpxstudio.github.io) - Interactive GPX editor with track visualization
+- [geojson.io](http://geojson.io) - GeoJSON viewer and editor
+
+### Python Libraries
+- [PyOSMium](https://osmcode.org/pyosmium/) - Fast OSM PBF file processing
+- [geopandas](https://geopandas.org/) - Geospatial data operations
+- [gpxpy](https://github.com/tkrajina/gpxpy) - GPX file parsing
 
 ## 🤝 Contributing
 
@@ -562,29 +702,54 @@ This is a personal project for AMR, but feel free to adapt it for:
 
 ## ⚡ Performance Tips
 
+### POI Extraction
 - **Simple strategy**: No setup, but slower for repeated runs. Good for one-off extractions.
 - **Stages strategy**: Best for very long routes (>500km). Avoids API timeouts.
-- **Local strategy**: Fastest for repeated runs with same geographic area. Requires setup.
+- **Local strategy**: Fastest for repeated runs with same geographic area. First run parses OSM file, subsequent runs are fast.
 - Use `--no-snap` to skip road snapping (faster, but less accurate for Garmin)
 - Limit buffer distance to reasonable corridor (500-2000m)
 - Use SSD for OSRM data processing
-- First run with local strategy is slow (OSM parsing), subsequent runs are fast
+
+### Safety Analysis
+- **OSM data caching**: Downloaded files are cached in `data/osm_cache/` for reuse
+- **First run**: Downloads OSM data (~500MB-2GB) and processes it (5-15 minutes)
+- **Subsequent runs**: Uses cached data, much faster (1-2 minutes)
+- **Buffer distance**: Default 100km is conservative. Use smaller for faster analysis:
+  - `--buffer-km 10` for route reconnaissance (5x faster)
+  - `--buffer-km 50` for regional planning (2x faster)
+  - `--buffer-km 100` for comprehensive coverage (thorough but slower)
+- **Regional optimization**: System automatically selects smallest Geofabrik region (e.g., Switzerland 600MB instead of Europe 30GB)
+- **SSD recommended**: OSM file processing is I/O intensive
 
 ## 📦 Package Installation Options
 
 ```powershell
-# Lightweight installation (Overpass API only)
+# Basic installation (Overpass API only - no local dependencies)
 pip install -e .
 
-# Full installation (includes local OSM file support)
+# With local OSM file support (for POI extraction strategy)
 pip install -e .[local]
+
+# With road safety analysis (auto-downloads OSM via Geofabrik)
+pip install -e .[safety]
 
 # Development installation (includes testing tools)
 pip install -e .[dev]
 
-# Everything
+# Everything (all features)
 pip install -e .[all]
 ```
+
+### Installation Groups Explained
+
+| Group | Use Case | Dependencies | Features |
+|-------|----------|--------------|----------|
+| **(base)** | Quick POI extraction | requests, gpxpy, pandas | Overpass API strategies |
+| `[local]` | Offline POI extraction | + geopandas, shapely, osmium | Local OSM file processing |
+| `[safety]` | Road safety analysis | + geopandas, shapely, osmium, pyyaml | Auto-download + analysis |
+| `[all]` | Everything | All of the above | All features enabled |
+
+**Note**: Both `[local]` and `[safety]` require the same geospatial stack (geopandas, shapely, osmium). All packages provide pre-built wheels for Windows and Linux.
 
 ---
 
