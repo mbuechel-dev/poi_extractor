@@ -1,64 +1,53 @@
-"""
-Export POIs to Garmin-ready GPX format
-Creates waypoint files that can be loaded onto Garmin devices
-
-⚠️  DEPRECATED: This script is deprecated in favor of the package-based CLI.
-Please use: poi-extractor export --csv <file>
-
-To install the package: pip install -e .
-"""
-
-import warnings
-warnings.warn(
-    "This script is deprecated. Use 'poi-extractor export' instead. "
-    "Install the package with: pip install -e .",
-    DeprecationWarning,
-    stacklevel=2
-)
+"""Garmin GPX exporter for POIs."""
 
 import pandas as pd
 import gpxpy.gpx
 from pathlib import Path
 from datetime import datetime
+from typing import Optional, List
 
-
-# Category icons/symbols for Garmin
-CATEGORY_SYMBOLS = {
-    "water": "Water Source",
-    "food": "Restaurant",
-    "hotels": "Lodging",
-    "supermarket": "Shopping",
-    "pharmacy": "Pharmacy",
-    "fuel": "Gas Station",
-}
+from ..core import Config
 
 
 class GarminExporter:
-    def __init__(self, csv_file):
+    """Export POIs to Garmin-compatible GPX format."""
+    
+    def __init__(self, csv_file: str, config: Optional[Config] = None):
         """
-        Initialize Garmin Exporter
+        Initialize Garmin Exporter.
         
         Args:
             csv_file: Path to CSV file with POI data
+            config: Configuration object for symbol mappings (uses defaults if None)
         """
         self.csv_file = Path(csv_file)
+        self.config = config or Config()
         self.pois = None
+    
+    def load_pois(self) -> pd.DataFrame:
+        """
+        Load POIs from CSV file.
         
-    def load_pois(self):
-        """Load POIs from CSV"""
+        Returns:
+            DataFrame of POIs
+        """
         print(f"Loading POIs from {self.csv_file}...")
         self.pois = pd.read_csv(self.csv_file)
         print(f"✓ Loaded {len(self.pois)} POIs")
         return self.pois
     
-    def export_gpx(self, output_file, use_snapped=True, categories=None):
+    def export_gpx(self, output_file: str, use_snapped: bool = True,
+                   categories: Optional[List[str]] = None) -> str:
         """
-        Export POIs to GPX format
+        Export POIs to GPX format.
         
         Args:
             output_file: Output GPX file path
             use_snapped: Use snapped coordinates if available (default: True)
             categories: List of categories to include (default: all)
+            
+        Returns:
+            Path to output file
         """
         print(f"\nExporting to GPX: {output_file}")
         
@@ -70,13 +59,17 @@ class GarminExporter:
         
         # Create GPX object
         gpx = gpxpy.gpx.GPX()
-        gpx.name = "AMR POIs"
-        gpx.description = f"Points of Interest along route - Generated {datetime.now().strftime('%Y-%m-%d')}"
+        gpx.name = "POI Waypoints"
+        gpx.description = (
+            f"Points of Interest along route - "
+            f"Generated {datetime.now().strftime('%Y-%m-%d')}"
+        )
         
         # Add waypoints
         for _, row in df.iterrows():
             # Choose coordinates
-            if use_snapped and "snapped_lat" in df.columns and pd.notna(row.get("snapped_lat")):
+            if (use_snapped and "snapped_lat" in df.columns and 
+                pd.notna(row.get("snapped_lat"))):
                 lat = row["snapped_lat"]
                 lon = row["snapped_lon"]
             else:
@@ -99,10 +92,10 @@ class GarminExporter:
                 name=wpt_name
             )
             
-            # Add symbol/type for Garmin
-            if category in CATEGORY_SYMBOLS:
-                wpt.symbol = CATEGORY_SYMBOLS[category]
-                wpt.type = category
+            # Add symbol/type for Garmin using config
+            symbol = self.config.get_garmin_symbol(category)
+            wpt.symbol = symbol
+            wpt.type = category
             
             # Add description with additional details
             desc_parts = [f"Category: {category}"]
@@ -115,23 +108,31 @@ class GarminExporter:
             
             gpx.waypoints.append(wpt)
         
+        # Ensure output directory exists
+        output_path = Path(output_file)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        
         # Write to file
         with open(output_file, "w", encoding="utf-8") as f:
             f.write(gpx.to_xml())
         
         print(f"✓ Exported {len(gpx.waypoints)} waypoints to {output_file}")
-        return output_file
+        return str(output_file)
     
-    def export_by_category(self, output_dir, use_snapped=True):
+    def export_by_category(self, output_dir: str, 
+                          use_snapped: bool = True) -> List[str]:
         """
-        Export separate GPX files for each category
+        Export separate GPX files for each category.
         
         Args:
             output_dir: Output directory for GPX files
             use_snapped: Use snapped coordinates if available
+            
+        Returns:
+            List of output file paths
         """
         output_dir = Path(output_dir)
-        output_dir.mkdir(exist_ok=True)
+        output_dir.mkdir(parents=True, exist_ok=True)
         
         print(f"\nExporting separate files by category to {output_dir}")
         
@@ -139,15 +140,19 @@ class GarminExporter:
         files = []
         
         for category in categories:
-            output_file = output_dir / f"amr-poi-{category}.gpx"
-            self.export_gpx(output_file, use_snapped=use_snapped, categories=[category])
-            files.append(output_file)
+            output_file = output_dir / f"poi-{category}.gpx"
+            self.export_gpx(
+                str(output_file),
+                use_snapped=use_snapped,
+                categories=[category]
+            )
+            files.append(str(output_file))
         
         print(f"\n✓ Exported {len(files)} category files")
         return files
     
     def print_statistics(self):
-        """Print statistics about POIs"""
+        """Print statistics about POIs."""
         print("\n=== POI Statistics ===")
         print(f"Total POIs: {len(self.pois)}")
         print("\nBy Category:")
@@ -155,43 +160,6 @@ class GarminExporter:
             print(f"  {category:15s}: {count:4d}")
         
         # Check for names
-        named = self.pois["name"].notna().sum()
-        print(f"\nNamed POIs: {named} ({named/len(self.pois)*100:.1f}%)")
-
-
-def main():
-    """Main execution"""
-    import argparse
-    
-    parser = argparse.ArgumentParser(description="Export POIs to Garmin GPX format")
-    parser.add_argument("--csv", default="data/pois_along_route.csv", help="Input CSV file")
-    parser.add_argument("--output", default="data/amr-poi.gpx", help="Output GPX file")
-    parser.add_argument("--split", action="store_true", help="Export separate files per category")
-    parser.add_argument("--output-dir", default="data/gpx", help="Output directory for split files")
-    parser.add_argument("--no-snap", action="store_true", help="Use original coordinates instead of snapped")
-    parser.add_argument("--categories", nargs="+", help="Only export specific categories")
-    
-    args = parser.parse_args()
-    
-    # Create exporter
-    exporter = GarminExporter(args.csv)
-    exporter.load_pois()
-    exporter.print_statistics()
-    
-    # Export
-    use_snapped = not args.no_snap
-    
-    if args.split:
-        exporter.export_by_category(args.output_dir, use_snapped=use_snapped)
-    else:
-        exporter.export_gpx(args.output, use_snapped=use_snapped, categories=args.categories)
-    
-    print("\n=== Export Complete! ===")
-    print("\nTo load onto Garmin:")
-    print("  Option 1 (Simple): Copy GPX files to /Garmin/NewFiles/")
-    print("  Option 2 (Better): Use Garmin POI Loader to convert to .gpi")
-    print("              and place in /Garmin/POI/")
-
-
-if __name__ == "__main__":
-    main()
+        if "name" in self.pois.columns:
+            named = self.pois["name"].notna().sum()
+            print(f"\nNamed POIs: {named} ({named/len(self.pois)*100:.1f}%)")

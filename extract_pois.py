@@ -1,7 +1,20 @@
 """
 POI Extractor for AMR Route
 Extracts Points of Interest along a GPX route from OSM data
+
+⚠️  DEPRECATED: This script is deprecated in favor of the package-based CLI.
+Please use: poi-extractor extract --strategy local --gpx <file> --osm <osm_file>
+
+To install the package with local support: pip install -e .[local]
 """
+
+import warnings
+warnings.warn(
+    "This script is deprecated. Use 'poi-extractor extract --strategy local' instead. "
+    "Install the package with: pip install -e .[local]",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import gpxpy
 import geopandas as gpd

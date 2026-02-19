@@ -1,7 +1,20 @@
 """
 Split long route into stages and extract POIs for each stage.
 Avoids Overpass API timeouts for long routes like AMR.
+
+⚠️  DEPRECATED: This script is deprecated in favor of the package-based CLI.
+Please use: poi-extractor extract --strategy stages --gpx <file>
+
+To install the package: pip install -e .
 """
+
+import warnings
+warnings.warn(
+    "This script is deprecated. Use 'poi-extractor extract --strategy stages' instead. "
+    "Install the package with: pip install -e .",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import gpxpy
 import requests

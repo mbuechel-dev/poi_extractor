@@ -1,0 +1,99 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "poi-extractor"
+version = "0.1.0"
+description = "Extract POIs along routes and export to Garmin-compatible GPX format"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "POI Extractor Contributors"}
+]
+keywords = ["poi", "gpx", "garmin", "osrm", "routing", "openstreetmap", "overpass"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "Topic :: Scientific/Engineering :: GIS",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+# Core dependencies (lightweight, no C++ build requirements)
+dependencies = [
+    "gpxpy>=1.5.0",
+    "requests>=2.28.0",
+    "pandas>=1.5.0",
+]
+
+[project.optional-dependencies]
+# Optional dependencies for local OSM file processing (requires C++ build tools)
+local = [
+    "geopandas>=0.12.0",
+    "shapely>=2.0.0",
+    "pyrosm>=0.6.0",
+]
+
+# Development dependencies
+dev = [
+    "pytest>=7.0",
+    "black>=22.0",
+    "flake8>=4.0",
+    "isort>=5.0",
+]
+
+# All optional dependencies
+all = [
+    "geopandas>=0.12.0",
+    "shapely>=2.0.0",
+    "pyrosm>=0.6.0",
+]
+
+[project.scripts]
+poi-extractor = "poi_extractor.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/poi_extractor"
+Repository = "https://github.com/yourusername/poi_extractor"
+Issues = "https://github.com/yourusername/poi_extractor/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+poi_extractor = ["*.ini"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+line_length = 88
