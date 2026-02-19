@@ -222,7 +222,183 @@ poi-extractor extract --config my_config.ini --gpx route.gpx
 poi-extractor export --config my_config.ini --csv pois.csv
 ```
 
-## 🔥 Advanced Usage
+## �️ Road Safety Analysis
+
+**NEW FEATURE**: Analyze roads along your race route to identify potentially unsafe sections for cyclists.
+
+Perfect for race organizers planning ultra-endurance events who need to:
+- Identify high-speed roads without cycling infrastructure
+- Find motorways and dangerous highway sections
+- Detect roads with heavy traffic or poor surfaces
+- Export results for route modification or safety briefings
+
+### Quick Safety Analysis
+
+```powershell
+# Analyze roads within 100km of your route
+poi-extractor analyze-safety --gpx data/race_route.gpx
+
+# Output: output/unsafe_roads.gpx (import to GPX Studio for visualization)
+```
+
+### How It Works
+
+1. **Auto-downloads** OSM data based on route location (via Geofabrik)
+2. **Extracts** all roads within specified buffer (default: 100km)
+3. **Scores** each road segment based on safety criteria (0-10 scale)
+4. **Filters** roads above risk threshold (default: 7.0/10)
+5. **Exports** unsafe segments as colored GPX tracks for visualization
+
+### Safety Criteria
+
+Roads are scored based on:
+
+| Factor | Weight | Details |
+|--------|--------|---------|
+| **Speed Limit** | 0-4 points | ≥100 km/h = very high risk |
+| **Highway Type** | 0-5 points | Motorways, trunk roads = dangerous |
+| **No Bike Infrastructure** | 0-2.5 points | Missing cycleway & shoulder |
+| **Multiple Lanes** | 0-2 points | 4+ lanes = heavy traffic |
+| **Poor Surface** | 0-1.5 points | Unpaved, gravel, cobblestone |
+| **Good Infrastructure** | -2 points | Protected cycleways = bonus |
+
+**Risk Levels:**
+- 🔴 **Critical** (9-10): Forbidden for cycling, extremely dangerous
+- 🟠 **High** (7-9): Requires attention, plan alternatives
+- 🟡 **Moderate** (5-7): Monitor, add safety warnings
+
+### Advanced Options
+
+```powershell
+# Customize buffer distance and risk threshold
+poi-extractor analyze-safety \
+  --gpx race_route.gpx \
+  --buffer-km 50 \
+  --min-risk-score 6.0 \
+  --output-gpx data/dangerous_roads.gpx
+
+# Export as GeoJSON for web visualization
+poi-extractor analyze-safety \
+  --gpx race_route.gpx \
+  --output-geojson data/unsafe_roads.geojson
+
+# Use custom safety criteria
+poi-extractor analyze-safety \
+  --gpx race_route.gpx \
+  --criteria-config my_safety_criteria.yaml
+
+# Use manually downloaded OSM file (no auto-download)
+poi-extractor analyze-safety \
+  --gpx race_route.gpx \
+  --osm-file morocco-latest.osm.pbf \
+  --no-auto-download
+```
+
+### Safety Analysis Command Reference
+
+```powershell
+poi-extractor analyze-safety [OPTIONS]
+```
+
+**Required:**
+- `--gpx PATH` - Input GPX route file
+
+**Buffer & Filtering:**
+- `--buffer-km KM` - Buffer distance around route (default: 100)
+- `--min-risk-score SCORE` - Minimum risk score 0-10 (default: 7.0)
+
+**Output:**
+- `--output-gpx PATH` - GPX file with unsafe roads (default: output/unsafe_roads.gpx)
+- `--output-geojson PATH` - GeoJSON file for web viewers
+
+**Configuration:**
+- `--criteria-config PATH` - Safety criteria YAML (default: config/safety_criteria.yaml)
+- `--osm-cache-dir PATH` - OSM cache directory (default: data/osm_cache)
+
+**Data Source:**
+- `--no-auto-download` - Disable automatic OSM download
+- `--osm-file PATH` - Use specific OSM PBF file
+
+### Visualizing Results
+
+**Option 1: GPX Studio** (Recommended)
+1. Go to [gpxstudio.github.io](https://gpxstudio.github.io)
+2. Import your race route GPX
+3. Import the `unsafe_roads.gpx` file
+4. Roads are color-coded by risk level
+5. Click segments to see risk factors
+
+**Option 2: GeoJSON Viewers**
+1. Export with `--output-geojson`
+2. View on [geojson.io](http://geojson.io)
+3. Or use QGIS for detailed analysis
+4. Properties include: risk score, factors, road metrics
+
+### Customizing Safety Criteria
+
+Edit `config/safety_criteria.yaml` to adjust scoring:
+
+```yaml
+risk_thresholds:
+  critical: 9.0
+  high: 7.0
+  moderate: 5.0
+
+speed_limits:  # km/h
+  very_high: 100
+  high: 80
+  moderate: 60
+  low: 50
+
+scoring:
+  speed_penalty:
+    very_high: 4.0
+    high: 3.0
+    moderate: 2.0
+    low: 1.0
+  
+  highway_types:
+    motorway: 5.0
+    trunk: 4.0
+    primary: 2.0
+    secondary: 1.0
+    tertiary: 0.5
+```
+
+### Requirements
+
+Safety analysis requires optional dependencies:
+
+```powershell
+pip install -e .[local]
+```
+
+This installs:
+- `geopandas` - Geospatial operations
+- `shapely` - Geometry processing
+- `osmium` - Reliable OSM file parsing
+
+**Note**: osmium compiles successfully on all platforms including Windows and WSL.
+
+### Race Organizer Workflow
+
+1. **Extract race route** from planning tool
+2. **Run safety analysis** with default settings
+3. **Review critical segments** (9-10 score) on map
+4. **Plan alternatives** or add marshals to dangerous sections
+5. **Generate rider briefing** with high-risk areas marked
+6. **Export filtered results** for specific risk levels
+
+Example for race briefing (critical roads only):
+
+```powershell
+poi-extractor analyze-safety \
+  --gpx amr_2026.gpx \
+  --min-risk-score 9.0 \
+  --output-gpx amr_critical_roads.gpx
+```
+
+## �🔥 Advanced Usage
 
 ### Using as a Python Library
 

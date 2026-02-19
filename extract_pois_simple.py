@@ -301,8 +301,9 @@ def main():
     print("\n=== POI Extraction Complete! ===")
     print(f"Results saved to: {args.output}")
     print("\nNext step: Run export_to_garmin.py to create GPX file")
-    print("\nNote: This simplified version uses Overpass API.")
-    print("For large areas, consider installing C++ Build Tools and using pyrosm.")
+    print("\nNote: This script is deprecated. Consider using the modern CLI:")
+    print("  poi-extractor extract --strategy simple --gpx your_route.gpx")
+    print("  poi-extractor extract --strategy local --gpx route.gpx --osm data.osm.pbf")
 
 
 if __name__ == "__main__":

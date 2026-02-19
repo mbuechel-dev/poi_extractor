@@ -109,6 +109,58 @@ def main():
         help="Path to config.ini file for symbol mappings"
     )
     
+    # Analyze-safety subcommand
+    safety_parser = subparsers.add_parser(
+        "analyze-safety",
+        help="Analyze road safety along route"
+    )
+    safety_parser.add_argument(
+        "--gpx",
+        dest="gpx_file",
+        required=True,
+        help="Input GPX route file"
+    )
+    safety_parser.add_argument(
+        "--buffer-km",
+        type=float,
+        default=100.0,
+        help="Buffer distance in kilometers around route (default: 100)"
+    )
+    safety_parser.add_argument(
+        "--min-risk-score",
+        type=float,
+        default=7.0,
+        help="Minimum risk score to include (0-10, default: 7.0)"
+    )
+    safety_parser.add_argument(
+        "--output-gpx",
+        help="Output GPX file with unsafe roads (default: output/unsafe_roads.gpx)"
+    )
+    safety_parser.add_argument(
+        "--output-geojson",
+        help="Output GeoJSON file with unsafe roads"
+    )
+    safety_parser.add_argument(
+        "--criteria-config",
+        default="config/safety_criteria.yaml",
+        help="Path to safety criteria config (default: config/safety_criteria.yaml)"
+    )
+    safety_parser.add_argument(
+        "--osm-cache-dir",
+        default="data/osm_cache",
+        help="Directory for OSM file cache (default: data/osm_cache)"
+    )
+    safety_parser.add_argument(
+        "--no-auto-download",
+        dest="auto_download",
+        action="store_false",
+        help="Disable automatic OSM data download"
+    )
+    safety_parser.add_argument(
+        "--osm-file",
+        help="Use specific OSM PBF file instead of auto-download"
+    )
+    
     # Parse arguments
     args = parser.parse_args()
     
@@ -123,6 +175,9 @@ def main():
     elif args.command == "export":
         from .export import run_export
         run_export(args)
+    elif args.command == "analyze-safety":
+        from .safety import run_safety_analysis
+        sys.exit(run_safety_analysis(args))
 
 
 if __name__ == "__main__":

@@ -22,3 +22,15 @@ try:
     __all__.append("LocalExtractor")
 except ImportError:
     pass
+
+# Safety analysis classes (require optional dependencies)
+try:
+    from .safety import RoadSafetyAnalyzer, SafetyCriteria, OSMDataManager, RoadSegment
+    __all__.extend([
+        "RoadSafetyAnalyzer",
+        "SafetyCriteria",
+        "OSMDataManager",
+        "RoadSegment",
+    ])
+except ImportError:
+    pass

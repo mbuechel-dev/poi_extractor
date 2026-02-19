@@ -1,4 +1,4 @@
-"""Local POI Extractor using pyrosm and local OSM PBF files."""
+"""Local POI Extractor using osmium and local OSM PBF files."""
 
 import csv
 from pathlib import Path
@@ -8,14 +8,14 @@ import gpxpy
 import geopandas as gpd
 import pandas as pd
 from shapely.geometry import LineString, Point
-from pyrosm import OSM
 import requests
 
 from ..core import Config, snap_to_route_osrm
+from ..core.osm_handlers import process_osm_pois
 
 
 class LocalExtractor:
-    """Extract POIs from local OSM PBF files using pyrosm."""
+    """Extract POIs from local OSM PBF files using osmium."""
     
     def __init__(self, config: Optional[Config] = None):
         """
@@ -86,32 +86,51 @@ class LocalExtractor:
         print(f"✓ Loaded route with {len(points)} points")
     
     def _load_pois(self, osm_file: str):
-        """Load POIs from OSM PBF file."""
+        """Load POIs from OSM PBF file using osmium."""
         print(f"\nLoading POIs from {osm_file}...")
         
-        osm = OSM(str(osm_file))
-        pois_list = []
+        try:
+            import osmium
+        except ImportError:
+            raise ImportError(
+                "osmium required for local OSM processing. "
+                "Install with: pip install poi-extractor[local]"
+            )
+        
         categories = self.config.get_categories()
         
-        for category, tags in categories.items():
-            print(f"  Loading {category}...")
-            try:
-                gdf = osm.get_pois(custom_filter=tags)
-                if gdf is not None and len(gdf) > 0:
-                    gdf["category"] = category
-                    pois_list.append(gdf)
-                    print(f"    Found {len(gdf)} {category} POIs")
-            except Exception as e:
-                print(f"    Warning: Could not load {category}: {e}")
+        # Process OSM file with osmium
+        print(f"  Processing OSM file (this may take a minute)...")
+        pois_data = process_osm_pois(osm_file, categories, buffer_polygon=None)
         
-        if not pois_list:
-            raise ValueError("No POIs found!")
+        if not pois_data:
+            raise ValueError("No POIs found in OSM file!")
         
-        self.pois = gpd.GeoDataFrame(
-            pd.concat(pois_list, ignore_index=True),
-            crs="EPSG:4326"
-        )
+        # Convert to GeoDataFrame
+        print(f"  Converting {len(pois_data)} POIs to GeoDataFrame...")
+        
+        # Create geometries
+        geometries = [Point(poi['lon'], poi['lat']) for poi in pois_data]
+        
+        # Create DataFrame
+        df_data = {
+            'category': [poi['category'] for poi in pois_data],
+            'name': [poi['name'] for poi in pois_data],
+            'geometry': geometries,
+        }
+        
+        # Add tag columns if present
+        for tag_type in ['amenity', 'shop', 'tourism']:
+            df_data[tag_type] = [poi.get(tag_type) for poi in pois_data]
+        
+        self.pois = gpd.GeoDataFrame(df_data, crs="EPSG:4326")
+        
         print(f"\n✓ Loaded {len(self.pois)} total POIs")
+        
+        # Show breakdown by category
+        for category in self.pois['category'].unique():
+            count = len(self.pois[self.pois['category'] == category])
+            print(f"  - {category}: {count}")
     
     def _filter_pois_along_route(self, buffer_meters: int):
         """Filter POIs within buffer distance of route."""

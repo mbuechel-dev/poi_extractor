@@ -6,6 +6,7 @@ __pycache__/
 .Python
 .venv/
 venv/
+venv-wsl/
 ENV/
 env/
 
@@ -17,8 +18,20 @@ data/*.csv
 data/*.gpx
 data/gpx/
 
+# OSM data cache (Geofabrik downloads)
+data/osm_cache/
+*.osm.pbf
+geofabrik_index.json
+
+# Safety analysis output
+output/
+*unsafe-roads.gpx
+*unsafe_roads.gpx
+
 # Keep example/template files
 !data/.gitkeep
+!misc/example_route.gpx
+!misc/AMR_2026_Updated.gpx
 
 # IDE
 .vscode/
@@ -34,6 +47,11 @@ desktop.ini
 
 # Logs
 *.log
+
+# Testing and debugging
+test_geofabrik.py
+test_osmium.py
+test_*.py
 
 # Distribution
 dist/

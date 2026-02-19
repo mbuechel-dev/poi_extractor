@@ -1,0 +1,98 @@
+# Road Safety Analysis Criteria Configuration
+# Customize these values to adjust road safety scoring for your race
+
+# Risk score thresholds (0-10 scale)
+risk_thresholds:
+  critical: 9.0    # Must be banned - extremely dangerous
+  high: 7.0        # Should be strongly avoided - very dangerous
+  medium: 5.0      # Caution advised - moderately dangerous
+  low: 3.0         # Generally safe with awareness
+
+# Speed limit thresholds (km/h)
+speed_limits:
+  very_dangerous: 100   # Highways, motorways
+  dangerous: 80         # Fast primary roads
+  moderate: 60          # Secondary roads
+  safe: 50              # Urban/residential
+
+# Highway type risk classifications
+highway_types:
+  # Absolutely forbidden for cyclists
+  forbidden:
+    - motorway
+    - motorway_link
+  
+  # Very high risk - fast, heavy traffic
+  high_risk:
+    - trunk
+    - trunk_link
+  
+  # Moderate risk - busy roads
+  medium_risk:
+    - primary
+    - primary_link
+  
+  # Lower risk but still watch for speed/traffic
+  low_risk:
+    - secondary
+    - secondary_link
+    - tertiary
+    - tertiary_link
+
+# Risk score adjustments (positive = more dangerous, negative = safer)
+scoring:
+  # Speed-based scoring (points added)
+  speed_penalties:
+    very_high: 4.0    # >= 100 km/h
+    high: 3.0         # >= 80 km/h
+    moderate: 2.0     # >= 60 km/h
+    low: 1.0          # >= 50 km/h
+  
+  # Highway type penalties
+  highway_penalties:
+    motorway: 5.0
+    trunk: 3.0
+    primary: 2.0
+    secondary: 1.0
+  
+  # Lack of cycling infrastructure
+  infrastructure_penalties:
+    no_cycleway_no_shoulder: 2.5
+    no_cycleway: 1.5
+    no_shoulder: 1.0
+  
+  # Multi-lane roads
+  lane_penalties:
+    four_or_more: 2.0
+    three: 1.0
+    two: 0.0
+  
+  # Poor surface conditions
+  surface_penalties:
+    very_bad: 1.5
+    bad: 1.0
+    unpaved: 0.5
+  
+  # Bonuses for good infrastructure (subtract from score)
+  infrastructure_bonuses:
+    dedicated_bike_lane: -2.0
+    separated_cycleway: -2.5
+    wide_shoulder: -1.5
+    designated_bike_route: -1.0
+
+# Export visualization settings
+visualization:
+  color_coding:
+    critical: "#FF0000"   # Bright red
+    high: "#FF8800"       # Orange
+    medium: "#FFFF00"     # Yellow
+    low: "#88FF00"        # Light green
+    minimal: "#00FF00"    # Green
+  
+  # Track width in GPX viewers (if supported)
+  track_width:
+    critical: 5
+    high: 4
+    medium: 3
+    low: 2
+    minimal: 1
