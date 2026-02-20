@@ -5,12 +5,13 @@ import json
 import gpxpy.gpx
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
+from xml.etree import ElementTree as ET
 from shapely.geometry import box, Polygon, LineString
 
 from .models import RoadSegment
 from .osm_manager import OSMDataManager
 from .criteria import SafetyCriteria
-from ..core.utils import load_gpx_route
+from ..core.utils import load_gpx_route, calculate_route_length
 
 
 class RoadSafetyAnalyzer:
@@ -33,6 +34,7 @@ class RoadSafetyAnalyzer:
         self.criteria = criteria
         self.osm_manager = OSMDataManager(cache_dir=osm_cache_dir)
         self.manual_osm_path = osm_data_path
+        self._route_coords = None  # Store original route coordinates
         
     def analyze_route(
         self, 
@@ -70,6 +72,9 @@ class RoadSafetyAnalyzer:
         print(f"\n📍 Loading route from {gpx_path}...")
         route_coords = load_gpx_route(gpx_path)
         print(f"✓ Loaded {len(route_coords)} points")
+        
+        # Store route coordinates for export
+        self._route_coords = route_coords
         
         # 3. Create buffer polygon
         buffer_polygon = self._create_buffer(route_coords, buffer_km)
@@ -295,23 +300,50 @@ class RoadSafetyAnalyzer:
         except (ValueError, TypeError):
             return default
     
-    def export_to_gpx(self, segments: List[RoadSegment], output_path: str):
+    def export_to_gpx(
+        self, 
+        segments: List[RoadSegment], 
+        output_path: str,
+        include_route: bool = True,
+        route_coords: Optional[List[Tuple[float, float]]] = None
+    ):
         """
-        Export unsafe road segments to GPX file.
+        Export unsafe road segments and optionally original route to GPX file.
         
         Args:
             segments: List of RoadSegment objects
             output_path: Path to output GPX file
+            include_route: If True, include original route as first track (default: True)
+            route_coords: List of (lat, lon) tuples for original route. If None, uses stored route.
         """
         gpx = gpxpy.gpx.GPX()
-        gpx.name = "Unsafe Roads Analysis"
+        gpx.name = "Road Safety Analysis"
         gpx.description = (
-            f"Safety analysis of {len(segments)} road segments. "
+            f"Safety analysis with original route and {len(segments)} unsafe road segments. "
             f"Import to GPX Studio or similar tool for visualization."
         )
         
+        # Add original route as first track (in blue)
+        if include_route:
+            coords = route_coords if route_coords is not None else self._route_coords
+            if coords:
+                route_track = gpxpy.gpx.GPXTrack()
+                route_track.name = "Original Route"
+                route_track.description = "Planned cycling route"
+                route_track.type = "Cycling"  # GPX Studio hint
+                
+                # Add track segment with coordinates
+                route_segment = gpxpy.gpx.GPXTrackSegment()
+                for lat, lon in coords:
+                    route_segment.points.append(
+                        gpxpy.gpx.GPXTrackPoint(lat, lon)
+                    )
+                
+                route_track.segments.append(route_segment)
+                gpx.tracks.append(route_track)
+        
+        # Add dangerous road segments
         for segment in segments:
-            # Create a track for each road segment
             track = gpxpy.gpx.GPXTrack()
             track.name = f"{segment.name} (Risk: {segment.risk_score:.1f})"
             track.description = (
@@ -319,6 +351,16 @@ class RoadSafetyAnalyzer:
                 f"Risk: {segment.risk_level} ({segment.risk_score:.1f}/10) | "
                 f"Factors: {', '.join(segment.risk_factors)}"
             )
+            
+            # Set track type based on risk level
+            if segment.risk_score >= 9.0:
+                track.type = "Critical"
+            elif segment.risk_score >= 7.0:
+                track.type = "High Risk"
+            elif segment.risk_score >= 5.0:
+                track.type = "Moderate Risk"
+            else:
+                track.type = "Low Risk"
             
             # Add track segment with coordinates
             track_segment = gpxpy.gpx.GPXTrackSegment()
@@ -334,22 +376,164 @@ class RoadSafetyAnalyzer:
         output_file = Path(output_path)
         output_file.parent.mkdir(parents=True, exist_ok=True)
         
-        # Write to file
-        with open(output_file, 'w', encoding='utf-8') as f:
-            f.write(gpx.to_xml())
+        # Generate GPX XML and inject color extensions
+        gpx_xml = gpx.to_xml()
+        gpx_xml = self._inject_gpx_studio_colors(gpx_xml, segments, include_route)
         
-        print(f"\n✓ Exported {len(segments)} unsafe road segments to {output_path}")
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write(gpx_xml)
+        
+        # Print summary with statistics
+        coords = route_coords if route_coords is not None else self._route_coords
+        if include_route and coords:
+            route_length = calculate_route_length(coords)
+            print(f"\n✓ Exported GPX file: {output_path}")
+            print(f"  • Original route: {route_length:.1f} km (blue)")
+        else:
+            print(f"\n✓ Exported GPX file: {output_path}")
+        
+        # Count by risk level
+        critical = [s for s in segments if s.risk_score >= 9.0]
+        high = [s for s in segments if 7.0 <= s.risk_score < 9.0]
+        moderate = [s for s in segments if 5.0 <= s.risk_score < 7.0]
+        
+        print(f"  • Dangerous segments: {len(segments)} tracks")
+        if critical:
+            total_km = sum(s.length_km() for s in critical)
+            print(f"    🔴 Critical: {len(critical)} segments, {total_km:.1f} km (red)")
+        if high:
+            total_km = sum(s.length_km() for s in high)
+            print(f"    🟠 High: {len(high)} segments, {total_km:.1f} km (orange)")
+        if moderate:
+            total_km = sum(s.length_km() for s in moderate)
+            print(f"    🟡 Moderate: {len(moderate)} segments, {total_km:.1f} km (yellow)")
     
-    def export_to_geojson(self, segments: List[RoadSegment], output_path: str):
+    def _inject_gpx_studio_colors(
+        self, 
+        gpx_xml: str, 
+        segments: List[RoadSegment],
+        include_route: bool
+    ) -> str:
         """
-        Export unsafe road segments to GeoJSON file.
+        Inject GPX Studio compatible color extensions into GPX XML.
+        
+        GPX Studio uses the 'extensions' tag with custom color attributes.
+        This method parses the GPX XML and adds color extensions to each track.
+        
+        Args:
+            gpx_xml: GPX XML string from gpxpy
+            segments: List of RoadSegment objects
+            include_route: Whether the first track is the original route
+            
+        Returns:
+            Modified GPX XML with color extensions
+        """
+        # Parse the GPX XML
+        root = ET.fromstring(gpx_xml)
+        
+        # Define namespaces
+        ns = {
+            'gpx': 'http://www.topografix.com/GPX/1/1',
+            'gpxx': 'http://www.garmin.com/xmlschemas/GpxExtensions/v3',
+        }
+        
+        # Register namespaces to preserve them in output
+        ET.register_namespace('', 'http://www.topografix.com/GPX/1/1')
+        ET.register_namespace('gpxx', 'http://www.garmin.com/xmlschemas/GpxExtensions/v3')
+        
+        # Add gpxx namespace to root if not present
+        if 'gpxx' not in root.attrib:
+            root.set('{http://www.w3.org/2000/xmlns/}gpxx', 'http://www.garmin.com/xmlschemas/GpxExtensions/v3')
+        
+        track_idx = 0
+        
+        # Process all tracks
+        for track in root.findall('{http://www.topografix.com/GPX/1/1}trk'):
+            # Get or create extensions element
+            extensions = track.find('{http://www.topografix.com/GPX/1/1}extensions')
+            if extensions is None:
+                extensions = ET.SubElement(track, '{http://www.topografix.com/GPX/1/1}extensions')
+            
+            # First track is the route (if included)
+            if track_idx == 0 and include_route:
+                # Blue color for original route
+                # Use Garmin extension for compatibility
+                garmin_ext = ET.SubElement(extensions, '{http://www.garmin.com/xmlschemas/GpxExtensions/v3}TrackExtension')
+                display_color = ET.SubElement(garmin_ext, '{http://www.garmin.com/xmlschemas/GpxExtensions/v3}DisplayColor')
+                display_color.text = 'Blue'
+            else:
+                # Dangerous road segment - get color based on risk
+                segment_idx = track_idx - (1 if include_route else 0)
+                if segment_idx < len(segments):
+                    segment = segments[segment_idx]
+                    
+                    # Determine color based on risk score
+                    if segment.risk_score >= 9.0:
+                        garmin_color = 'Red'
+                    elif segment.risk_score >= 7.0:
+                        garmin_color = 'DarkYellow'  # Orange
+                    elif segment.risk_score >= 5.0:
+                        garmin_color = 'Yellow'
+                    else:
+                        garmin_color = 'Green'
+                    
+                    # Add Garmin extension
+                    garmin_ext = ET.SubElement(extensions, '{http://www.garmin.com/xmlschemas/GpxExtensions/v3}TrackExtension')
+                    display_color = ET.SubElement(garmin_ext, '{http://www.garmin.com/xmlschemas/GpxExtensions/v3}DisplayColor')
+                    display_color.text = garmin_color
+            
+            track_idx += 1
+        
+        # Convert back to string with proper XML declaration
+        xml_str = ET.tostring(root, encoding='unicode', method='xml')
+        
+        # Add XML declaration
+        return '<?xml version="1.0" encoding="UTF-8"?>\n' + xml_str
+    
+    def export_to_geojson(
+        self, 
+        segments: List[RoadSegment], 
+        output_path: str,
+        include_route: bool = True,
+        route_coords: Optional[List[Tuple[float, float]]] = None
+    ):
+        """
+        Export unsafe road segments and optionally original route to GeoJSON file.
         
         Args:
             segments: List of RoadSegment objects
             output_path: Path to output GeoJSON file
+            include_route: If True, include original route as first feature (default: True)
+            route_coords: List of (lat, lon) tuples for original route. If None, uses stored route.
         """
         features = []
         
+        # Add original route as first feature (blue)
+        if include_route:
+            coords = route_coords if route_coords is not None else self._route_coords
+            if coords:
+                # Convert coordinates to GeoJSON format (lon, lat)
+                route_line = [[lon, lat] for lat, lon in coords]
+                
+                route_feature = {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "LineString",
+                        "coordinates": route_line
+                    },
+                    "properties": {
+                        "type": "route",
+                        "name": "Original Route",
+                        "description": "Planned cycling route",
+                        "color": "#4285F4",  # Google Maps blue
+                        "stroke": "#4285F4",
+                        "stroke-width": 3,
+                        "stroke-opacity": 0.8
+                    }
+                }
+                features.append(route_feature)
+        
+        # Add unsafe road segments
         for segment in segments:
             # Convert coordinates to GeoJSON format (lon, lat)
             coordinates = [[lon, lat] for lat, lon in segment.coordinates]
@@ -361,6 +545,7 @@ class RoadSafetyAnalyzer:
                     "coordinates": coordinates
                 },
                 "properties": {
+                    "type": "dangerous_road",
                     "name": segment.name,
                     "osm_id": segment.osm_id,
                     "highway_type": segment.highway_type,
@@ -372,6 +557,9 @@ class RoadSafetyAnalyzer:
                     "has_cycleway": segment.has_cycleway,
                     "has_shoulder": segment.has_shoulder,
                     "color": segment.color,
+                    "stroke": segment.color,
+                    "stroke-width": 4,
+                    "stroke-opacity": 1.0,
                     "length_km": round(segment.length_km(), 2),
                 }
             }
@@ -390,4 +578,10 @@ class RoadSafetyAnalyzer:
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(geojson, f, indent=2)
         
-        print(f"✓ Exported {len(segments)} road segments to GeoJSON: {output_path}")
+        # Print summary
+        if include_route and (route_coords or self._route_coords):
+            print(f"✓ Exported GeoJSON file: {output_path}")
+            print(f"  • Original route (blue)")
+            print(f"  • {len(segments)} unsafe road segments (colored by risk)")
+        else:
+            print(f"✓ Exported {len(segments)} road segments to GeoJSON: {output_path}")

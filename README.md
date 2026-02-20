@@ -318,8 +318,10 @@ pip install -e .[safety]
 # Analyze roads within 10km buffer of your route
 poi-extractor analyze-safety --gpx data/race_route.gpx --buffer-km 10
 
-# Output: output/unsafe_roads.gpx (import to GPX Studio for visualization)
+# Output: output/unsafe_roads.gpx (includes your route in blue + dangerous roads in red/orange/yellow)
 ```
+
+The output GPX file contains both your original route (displayed in blue) and dangerous road segments (color-coded by risk level). Perfect for importing to GPX Studio or Garmin device to see risks in context.
 
 ### How It Works
 
@@ -331,9 +333,11 @@ poi-extractor analyze-safety --gpx data/race_route.gpx --buffer-km 10
 2. **Extracts** all roads within specified buffer (default: 100km)
 3. **Scores** each road segment based on safety criteria (0-10 scale)
 4. **Filters** roads above risk threshold (default: 7.0/10)
-5. **Exports** unsafe segments as colored GPX tracks for visualization
+5. **Exports** original route (blue) + unsafe segments (color-coded) to GPX/GeoJSON
 
 **No manual OSM downloads needed!** The system automatically handles everything.
+
+**Visual Output:** The GPX file contains your original route in blue for reference, with dangerous road segments overlaid in red (critical), orange (high risk), or yellow (moderate risk).
 
 ### Safety Criteria
 
@@ -362,6 +366,13 @@ poi-extractor analyze-safety \
   --buffer-km 50 \
   --min-risk-score 6.0 \
   --output-gpx data/dangerous_roads.gpx
+
+# Export only dangerous roads (exclude original route)
+poi-extractor analyze-safety \
+  --gpx race_route.gpx \
+  --buffer-km 10 \
+  --output-gpx data/dangers_only.gpx \
+  --no-route
 
 # Export as GeoJSON for web visualization
 poi-extractor analyze-safety \
@@ -396,6 +407,7 @@ poi-extractor analyze-safety [OPTIONS]
 **Output:**
 - `--output-gpx PATH` - GPX file with unsafe roads (default: output/unsafe_roads.gpx)
 - `--output-geojson PATH` - GeoJSON file for web viewers
+- `--no-route` - Exclude original route from output (only show dangerous roads)
 
 **Configuration:**
 - `--criteria-config PATH` - Safety criteria YAML (default: config/safety_criteria.yaml)
@@ -407,18 +419,30 @@ poi-extractor analyze-safety [OPTIONS]
 
 ### Visualizing Results
 
+The exported GPX file contains:
+- 🔵 **Original route** (blue) - Your planned cycling path
+- 🔴 **Critical roads** (red) - Risk score 9-10
+- 🟠 **High risk roads** (orange) - Risk score 7-9
+- 🟡 **Moderate risk roads** (yellow) - Risk score 5-7
+
 **Option 1: GPX Studio** (Recommended)
 1. Go to [gpxstudio.github.io](https://gpxstudio.github.io)
-2. Import your race route GPX
-3. Import the `unsafe_roads.gpx` file
-4. Roads are color-coded by risk level
-5. Click segments to see risk factors
+2. Import the `unsafe_roads.gpx` file (includes both route and dangerous segments)
+3. Original route appears in blue for reference
+4. Dangerous roads are color-coded by risk level
+5. Click segments to see risk factors and details
 
-**Option 2: GeoJSON Viewers**
+**Option 2: Garmin Device**
+1. Copy `unsafe_roads.gpx` to your Garmin device (`/Garmin/NewFiles/`)
+2. During navigation, you'll see both your route and hazard warnings
+3. Blue track = planned route, red/orange tracks = dangerous sections
+
+**Option 3: GeoJSON Viewers**
 1. Export with `--output-geojson`
 2. View on [geojson.io](http://geojson.io)
 3. Or use QGIS for detailed analysis
 4. Properties include: risk score, factors, road metrics
+5. Original route included as first feature with `type: "route"`
 
 ### Customizing Safety Criteria
 
@@ -473,21 +497,35 @@ This installs:
 
 ### Race Organizer Workflow
 
-1. **Extract race route** from planning tool
+1. **Extract race route** from planning tool (GPX format)
 2. **Run safety analysis** with default settings
-3. **Review critical segments** (9-10 score) on map
-4. **Plan alternatives** or add marshals to dangerous sections
-5. **Generate rider briefing** with high-risk areas marked
-6. **Export filtered results** for specific risk levels
+3. **Review output GPX** in GPX Studio - blue route shows planned path, red/orange overlays show hazards
+4. **Identify critical segments** (9-10 score) that intersect with route
+5. **Plan alternatives** or add marshals/warnings to dangerous sections
+6. **Generate rider briefing** with high-risk areas marked
+7. **Export filtered results** for specific briefing materials
 
-Example for race briefing (critical roads only):
+Example for comprehensive analysis (includes route context):
+
+```powershell
+poi-extractor analyze-safety \
+  --gpx amr_2026.gpx \
+  --buffer-km 10 \
+  --min-risk-score 7.0 \
+  --output-gpx amr_safety_analysis.gpx
+```
+
+Example for critical roads only (race briefing):
 
 ```powershell
 poi-extractor analyze-safety \
   --gpx amr_2026.gpx \
   --min-risk-score 9.0 \
-  --output-gpx amr_critical_roads.gpx
+  --output-gpx amr_critical_roads.gpx \
+  --no-route
 ```
+
+**Tip:** Use `--no-route` flag when generating focused briefing documents that only show hazards, or keep the route included when you need full context for planning.
 
 ## �🔥 Advanced Usage
 

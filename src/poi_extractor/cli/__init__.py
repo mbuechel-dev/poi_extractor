@@ -160,6 +160,12 @@ def main():
         "--osm-file",
         help="Use specific OSM PBF file instead of auto-download"
     )
+    safety_parser.add_argument(
+        "--no-route",
+        dest="include_route",
+        action="store_false",
+        help="Do not include original route in output GPX (only show dangerous roads)"
+    )
     
     # Parse arguments
     args = parser.parse_args()

@@ -60,17 +60,32 @@ def run_safety_analysis(args):
         print(f"  🟠 High (7-9): {high} segments")
         print(f"  🟡 Moderate (5-7): {moderate} segments")
         
+        # Determine if route should be included in export
+        include_route = args.include_route if hasattr(args, 'include_route') else True
+        
         # Export results
         if args.output_gpx:
-            analyzer.export_to_gpx(unsafe_roads, args.output_gpx)
+            analyzer.export_to_gpx(
+                unsafe_roads, 
+                args.output_gpx,
+                include_route=include_route
+            )
         
         if args.output_geojson:
-            analyzer.export_to_geojson(unsafe_roads, args.output_geojson)
+            analyzer.export_to_geojson(
+                unsafe_roads, 
+                args.output_geojson,
+                include_route=include_route
+            )
         
         if not args.output_gpx and not args.output_geojson:
             # Default output
             default_gpx = "output/unsafe_roads.gpx"
-            analyzer.export_to_gpx(unsafe_roads, default_gpx)
+            analyzer.export_to_gpx(
+                unsafe_roads, 
+                default_gpx,
+                include_route=include_route
+            )
         
         print("\n" + "=" * 70)
         print("💡 NEXT STEPS")
