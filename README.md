@@ -595,16 +595,16 @@ pois = extractor.extract(gpx_file="route.gpx", stage_km=100)
 
 ## 🔄 Migrating from Old Scripts
 
-If you were using the old standalone scripts:
+**Note:** The old standalone scripts (`extract_pois*.py`, `export_to_garmin.py`) have been removed. Use the modern CLI instead:
 
-| Old Command | New Command |
+| Old Command (Removed) | New Command |
 |-------------|-------------|
 | `python extract_pois_simple.py --gpx route.gpx` | `poi-extractor extract --strategy simple --gpx route.gpx` |
 | `python extract_pois_by_stages.py --gpx route.gpx` | `poi-extractor extract --strategy stages --gpx route.gpx` |
 | `python extract_pois.py --gpx route.gpx` | `poi-extractor extract --strategy local --gpx route.gpx` |
 | `python export_to_garmin.py` | `poi-extractor export` |
 
-The old scripts are still available but deprecated.
+The modern CLI offers the same functionality with better error handling, progress reporting, and additional features like road safety analysis.
 
 ## 🛠️ Troubleshooting
 

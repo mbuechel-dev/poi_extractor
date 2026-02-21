@@ -70,9 +70,9 @@ all = [
 poi-extractor = "poi_extractor.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/yourusername/poi_extractor"
-Repository = "https://github.com/yourusername/poi_extractor"
-Issues = "https://github.com/yourusername/poi_extractor/issues"
+Homepage = "https://github.com/mbuechel-dev/poi_extractor"
+Repository = "https://github.com/mbuechel-dev/poi_extractor"
+Issues = "https://github.com/mbuechel-dev/poi_extractor/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

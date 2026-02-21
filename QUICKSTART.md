@@ -1,10 +1,10 @@
-# Quick Start Guide - Simplified Version
+# Quick Start Guide
 
 **✅ Your system is ready to use!**
 
-## Three Versions Available:
+## Three Extraction Strategies:
 
-### 1. **Stage-by-Stage Version** ⭐ RECOMMENDED FOR AMR
+### 1. **Stage-by-Stage (stages)** ⭐ RECOMMENDED FOR AMR
 - Splits long routes into manageable stages
 - Avoids Overpass API timeouts
 - Perfect for 1000+ km routes
@@ -12,11 +12,11 @@
 
 **Use this command for AMR:**
 ```powershell
-.\.venv\Scripts\python.exe extract_pois_by_stages.py --gpx data\AMR_2026_Updated.gpx --stage-km 150 --buffer 1000
-.\.venv\Scripts\python.exe export_to_garmin.py
+poi-extractor extract --strategy stages --gpx data\AMR_2026_Updated.gpx --stage-km 150 --buffer 1000
+poi-extractor export --csv data\pois_along_route.csv --output data\amr-poi.gpx
 ```
 
-### 2. **Simplified Version** (Good for shorter routes)
+### 2. **Simple Strategy (simple)** (Good for shorter routes)
 - Uses Overpass API to query OpenStreetMap online
 - Works immediately on any system
 - Good for routes up to ~50km  
@@ -24,16 +24,20 @@
 
 **Use this command:**
 ```powershell
-.\.venv\Scripts\python.exe extract_pois_simple.py --gpx data\your_route.gpx
-.\.venv\Scripts\python.exe export_to_garmin.py
+poi-extractor extract --strategy simple --gpx data\your_route.gpx
+poi-extractor export --csv data\pois_along_route.csv
 ```
 
-### 3. **Full Version** (Requires C++ Build Tools)
+### 3. **Local Strategy (local)** (Offline processing)
 - Processes local OSM files (faster, no rate limits)
-- Better for long routes like full AMR
-- Requires: [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+- Better for repeated extractions of the same region
+- Requires: `pip install -e .[local]` for osmium dependencies
 
-To use full version: Install C++ Build Tools, then run original `extract_pois.py`
+**Use this command:**
+```powershell
+poi-extractor extract --strategy local --gpx data\your_route.gpx --osm data\region.osm.pbf
+poi-extractor export --csv data\pois_along_route.csv
+```
 
 ---
 
@@ -43,7 +47,7 @@ To use full version: Install C++ Build Tools, then run original `extract_pois.py
 
 2. **Extract POIs by stages:**
 ```powershell
-.\.venv\Scripts\python.exe extract_pois_by_stages.py --gpx data\AMR_2026_Updated.gpx --stage-km 150
+poi-extractor extract --strategy stages --gpx data\AMR_2026_Updated.gpx --stage-km 150
 ```
 
 This will:
@@ -59,7 +63,7 @@ This will:
 
 3. **Export to Garmin:**
 ```powershell
-.\.venv\Scripts\python.exe export_to_garmin.py
+poi-extractor export --csv data\pois_along_route.csv --output data\amr-poi.gpx
 ```
 
 4. **Load onto Garmin:**
@@ -110,12 +114,17 @@ Just tested with example route:
 
 **Export specific categories:**
 ```powershell
-.\.venv\Scripts\python.exe export_to_garmin.py --categories water food supermarket
+poi-extractor export --csv data\pois_along_route.csv --categories water food supermarket
 ```
 
-**Split by category (separate GPX files):**
+**Specify custom output file:**
 ```powershell
-.\.venv\Scripts\python.exe export_to_garmin.py --split --output-dir data\gpx
+poi-extractor export --csv data\pois_along_route.csv --output data\custom-poi.gpx
+```
+
+**Road Safety Analysis** (requires `pip install -e .[safety]`):
+```powershell
+poi-extractor safety analyze --gpx data\your_route.gpx --output output\safety-report.gpx
 ```
 
 ---
@@ -146,12 +155,15 @@ roubleshooting
 
 ## 📁 Files Created
 
-- ✅ `extract_pois_by_stages.py` - Stage-by-stage extraction ⭐ RECOMMENDED
-- ✅ `extract_pois_simple.py` - Single-query extraction
-- ✅ `export_to_garmin.py` - Garmin GPX export
 - ✅ `data\pois_along_route.csv` - POI data with stage info
 - ✅ `data\amr-poi.gpx` - Garmin-ready file
 
 **Your POI extraction system is fully functional!** 🎉
 
-**For AMR 2026, the stage-by-stage script is your best option!** 🚴‍♂️🏔️
+**For AMR 2026, use the `--strategy stages` option for best results!** 🚴‍♂️🏔️
+
+---
+
+## 📌 Migration Note
+
+**Old standalone scripts removed:** The previous `extract_pois*.py` and `export_to_garmin.py` scripts have been removed. All functionality is now available through the modern `poi-extractor` CLI command with better features and error handling.

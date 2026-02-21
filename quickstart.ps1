@@ -85,10 +85,10 @@ if (!(Test-Path ".venv\Scripts\python.exe")) {
 
 # Check if packages are installed
 $pythonCmd = ".\.venv\Scripts\python.exe"
-& $pythonCmd -c "import geopandas" 2>$null
+& $pythonCmd -c "import poi_extractor" 2>$null
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "Installing Python packages..." -ForegroundColor Yellow
-    & $pythonCmd -m pip install -r requirements.txt
+    Write-Host "Installing Python packages (this may take a few minutes)..." -ForegroundColor Yellow
+    & $pythonCmd -m pip install -e .[all]
     if ($LASTEXITCODE -ne 0) {
         Write-Host "❌ Package installation failed!" -ForegroundColor Red
         exit 1
